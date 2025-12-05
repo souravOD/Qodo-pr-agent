@@ -1,3 +1,8 @@
+[config]
+# Org is limited to openai/gpt-5.1 and openai/gpt-5, so force allowed models.
+model = "openai/gpt-5.1"
+fallback_models = ["openai/gpt-5"]
+
 [pr_reviewer]
 enable_review_labels_effort = true
 enable_auto_approval = true
