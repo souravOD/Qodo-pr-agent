@@ -48,7 +48,7 @@ large_patch_policy = "clip" # "clip", "skip"
 duplicate_prompt_examples = false
 # seed
 seed=-1 # set positive value to fix the seed (and ensure temperature=0)
-temperature=0.2
+temperature=1
 # bring repo metadata 💎
 add_repo_metadata=false # if true, will try to add metadata from files like 'AGENTS.MD', 'CLAUDE.MD', 'QODO.MD'
 add_repo_metadata_file_list =["AGENTS.MD", "CLAUDE.MD", "QODO.MD"]
