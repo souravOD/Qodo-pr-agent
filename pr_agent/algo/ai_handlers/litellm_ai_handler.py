@@ -291,12 +291,17 @@ class LiteLLMAIHandler(BaseAiHandler):
                                           {"type": "image_url", "image_url": {"url": img_path}}]
 
             thinking_kwargs_gpt5 = None
-            # Ensure OpenAI gpt-5 family models carry the required vendor prefix.
-            if model in ("gpt-5-mini", "gpt-5-nano", "gpt-5", "gpt-5.1"):
+            # Normalize GPT-5 family names to always include the vendor prefix expected by the OpenAI API.
+            if model.startswith("openai/gpt-5"):
+                # Strip any duplicated prefix (e.g., openai/openai/gpt-5.1) and re-add once.
+                base_model = model.split("/", 1)[1]
+                model = f"openai/{base_model}"
+            elif model.startswith("gpt-5"):
                 model = f"openai/{model}"
 
-            if model.startswith('gpt-5'):
-                if model.endswith('_thinking'):
+            if model.startswith('openai/gpt-5'):
+                stripped_model = model.replace('openai/', '')
+                if stripped_model.endswith('_thinking'):
                     thinking_kwargs_gpt5 = {
                         "reasoning_effort": 'low',
                         "allowed_openai_params": ["reasoning_effort"],
@@ -306,7 +311,7 @@ class LiteLLMAIHandler(BaseAiHandler):
                         "reasoning_effort": 'minimal',
                         "allowed_openai_params": ["reasoning_effort"],
                     }
-                model = 'openai/'+model.replace('_thinking', '')  # remove _thinking suffix
+                model = f"openai/{stripped_model.replace('_thinking', '')}"  # remove _thinking suffix but keep vendor
 
 
             # Currently, some models do not support a separate system and user prompts
