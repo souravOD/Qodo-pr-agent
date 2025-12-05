@@ -291,6 +291,10 @@ class LiteLLMAIHandler(BaseAiHandler):
                                           {"type": "image_url", "image_url": {"url": img_path}}]
 
             thinking_kwargs_gpt5 = None
+            # Ensure OpenAI gpt-5 family models carry the required vendor prefix.
+            if model in ("gpt-5-mini", "gpt-5-nano", "gpt-5", "gpt-5.1"):
+                model = f"openai/{model}"
+
             if model.startswith('gpt-5'):
                 if model.endswith('_thinking'):
                     thinking_kwargs_gpt5 = {
