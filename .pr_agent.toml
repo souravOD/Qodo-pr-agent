@@ -1,3 +1,12 @@
+[config]
+# Use LiteLLM proxy-compatible OpenAI models (avoid restricted dated variants).
+model = "gpt-5"
+fallback_models = ["gpt-5-mini", "gpt-5-nano"]
+
+[openai]
+# Route all OpenAI-style calls through the LiteLLM proxy.
+api_base = "https://litellm.confer.today"
+
 [pr_reviewer]
 enable_review_labels_effort = true
 enable_auto_approval = true
