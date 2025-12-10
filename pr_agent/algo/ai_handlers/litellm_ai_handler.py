@@ -268,6 +268,9 @@ class LiteLLMAIHandler(BaseAiHandler):
         try:
             resp, finish_reason = None, None
             deployment_id = self.deployment_id
+            # Sanitize possible quoted/escaped model names coming from env
+            if model:
+                model = model.strip().strip("\\'\"").replace("\\", "").strip()
             if self.azure:
                 model = 'azure/' + model
             if 'claude' in model and not system:

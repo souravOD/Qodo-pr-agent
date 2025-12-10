@@ -339,6 +339,18 @@ async def retry_with_fallback_models(f: Callable, model_type: ModelType = ModelT
 
 
 def _get_all_models(model_type: ModelType = ModelType.REGULAR) -> List[str]:
+    def _sanitize_model_name(raw: str) -> str:
+        """
+        Normalize model strings that may arrive with extra quotes/backslashes from env parsing,
+        and ensure gpt-5 family has the openai/ prefix.
+        """
+        if raw is None:
+            return raw
+        cleaned = raw.strip().strip("\\'\"").replace("\\", "").strip()
+        if cleaned.startswith("gpt-5"):
+            cleaned = f"openai/{cleaned}"
+        return cleaned
+
     if model_type == ModelType.WEAK:
         model = get_model('model_weak')
     elif model_type == ModelType.REASONING:
@@ -356,7 +368,7 @@ def _get_all_models(model_type: ModelType = ModelType.REGULAR) -> List[str]:
             .replace("'", "")
         )
         fallback_models = [m.strip() for m in cleaned.split(",") if m.strip()]
-    all_models = [model] + fallback_models
+    all_models = [_sanitize_model_name(model)] + [_sanitize_model_name(m) for m in fallback_models]
     return all_models
 
 
