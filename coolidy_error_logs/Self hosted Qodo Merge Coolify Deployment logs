@@ -1,0 +1,208 @@
+2025-Dec-10 03:28:27.041141
+Starting deployment of souravOD/Qodo-pr-agent:main to Odyssey-vps.
+2025-Dec-10 03:28:27.250715
+Preparing container with helper image: ghcr.io/coollabsio/coolify-helper:1.0.12
+2025-Dec-10 03:28:27.403257
+[CMD]: docker stop -t 30 fk848cwscs8s4g8sgocs8kok
+2025-Dec-10 03:28:27.403257
+Error response from daemon: No such container: fk848cwscs8s4g8sgocs8kok
+2025-Dec-10 03:28:27.518348
+[CMD]: docker rm -f fk848cwscs8s4g8sgocs8kok
+2025-Dec-10 03:28:27.518348
+Error response from daemon: No such container: fk848cwscs8s4g8sgocs8kok
+2025-Dec-10 03:28:27.694610
+[CMD]: docker run -d --network coolify --name fk848cwscs8s4g8sgocs8kok  --rm -v /var/run/docker.sock:/var/run/docker.sock ghcr.io/coollabsio/coolify-helper:1.0.12
+2025-Dec-10 03:28:27.694610
+214f9d2e5a2b4c181feb1c41b4065b54ea78fa5cd9370478d900c1f222822952
+2025-Dec-10 03:28:28.455068
+[CMD]: docker exec fk848cwscs8s4g8sgocs8kok bash -c 'GIT_SSH_COMMAND="ssh -o ConnectTimeout=30 -p 22 -o Port=22 -o LogLevel=ERROR -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" git ls-remote https://github.com/souravOD/Qodo-pr-agent refs/heads/main'
+2025-Dec-10 03:28:28.455068
+93f05af05fe34f76579e600efb7a9d2aa841960d	refs/heads/main
+2025-Dec-10 03:28:28.477987
+----------------------------------------
+2025-Dec-10 03:28:28.486814
+Importing souravOD/Qodo-pr-agent:main (commit sha 93f05af05fe34f76579e600efb7a9d2aa841960d) to /artifacts/fk848cwscs8s4g8sgocs8kok.
+2025-Dec-10 03:28:28.657976
+[CMD]: docker exec fk848cwscs8s4g8sgocs8kok bash -c 'git clone --depth=1 --recurse-submodules --shallow-submodules -b 'main' 'https://github.com/souravOD/Qodo-pr-agent' '/artifacts/fk848cwscs8s4g8sgocs8kok' && cd '/artifacts/fk848cwscs8s4g8sgocs8kok' && if [ -f .gitmodules ]; then sed -i "s#git@\(.*\):#https://\1/#g" '/artifacts/fk848cwscs8s4g8sgocs8kok'/.gitmodules || true && git submodule sync && GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" git submodule update --init --recursive --depth=1; fi && cd '/artifacts/fk848cwscs8s4g8sgocs8kok' && GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" git lfs pull'
+2025-Dec-10 03:28:28.657976
+Cloning into '/artifacts/fk848cwscs8s4g8sgocs8kok'...
+2025-Dec-10 03:28:29.759740
+[CMD]: docker exec fk848cwscs8s4g8sgocs8kok bash -c 'cd /artifacts/fk848cwscs8s4g8sgocs8kok && git log -1 93f05af05fe34f76579e600efb7a9d2aa841960d --pretty=%B'
+2025-Dec-10 03:28:29.759740
+Implemented additional sanitization to stop malformed model names causing LiteLLM errors
+2025-Dec-10 03:28:29.905475
+[CMD]: docker images -q r0gg40o0wog4sg0cso4cog4c:93f05af05fe34f76579e600efb7a9d2aa841960d 2>/dev/null
+2025-Dec-10 03:28:29.905475
+029a306b3aab
+2025-Dec-10 03:28:29.916958
+No configuration changed & image found (r0gg40o0wog4sg0cso4cog4c:93f05af05fe34f76579e600efb7a9d2aa841960d) with the same Git Commit SHA. Build step skipped.
+2025-Dec-10 03:28:30.355492
+[CMD]: docker exec fk848cwscs8s4g8sgocs8kok bash -c 'cat /artifacts/fk848cwscs8s4g8sgocs8kok/docker/Dockerfile'
+2025-Dec-10 03:28:30.355492
+FROM python:3.12.10-slim AS base
+2025-Dec-10 03:28:30.355492
+2025-Dec-10 03:28:30.355492
+RUN apt update && apt install --no-install-recommends -y git curl && apt-get clean && rm -rf /var/lib/apt/lists/*
+2025-Dec-10 03:28:30.355492
+2025-Dec-10 03:28:30.355492
+WORKDIR /app
+2025-Dec-10 03:28:30.355492
+ADD pyproject.toml .
+2025-Dec-10 03:28:30.355492
+ADD requirements.txt .
+2025-Dec-10 03:28:30.355492
+ADD docs docs
+2025-Dec-10 03:28:30.355492
+RUN pip install --no-cache-dir . && rm pyproject.toml requirements.txt
+2025-Dec-10 03:28:30.355492
+ENV PYTHONPATH=/app
+2025-Dec-10 03:28:30.355492
+2025-Dec-10 03:28:30.355492
+FROM base AS github_app
+2025-Dec-10 03:28:30.355492
+ADD pr_agent pr_agent
+2025-Dec-10 03:28:30.355492
+CMD ["python", "-m", "gunicorn", "-k", "uvicorn.workers.UvicornWorker", "-c", "pr_agent/servers/gunicorn_config.py", "--forwarded-allow-ips", "*", "pr_agent.servers.github_app:app"]
+2025-Dec-10 03:28:30.355492
+2025-Dec-10 03:28:30.355492
+FROM base AS bitbucket_app
+2025-Dec-10 03:28:30.355492
+ADD pr_agent pr_agent
+2025-Dec-10 03:28:30.355492
+CMD ["python", "pr_agent/servers/bitbucket_app.py"]
+2025-Dec-10 03:28:30.355492
+2025-Dec-10 03:28:30.355492
+FROM base AS bitbucket_server_webhook
+2025-Dec-10 03:28:30.355492
+ADD pr_agent pr_agent
+2025-Dec-10 03:28:30.355492
+CMD ["python", "pr_agent/servers/bitbucket_server_webhook.py"]
+2025-Dec-10 03:28:30.355492
+2025-Dec-10 03:28:30.355492
+FROM base AS github_polling
+2025-Dec-10 03:28:30.355492
+ADD pr_agent pr_agent
+2025-Dec-10 03:28:30.355492
+CMD ["python", "pr_agent/servers/github_polling.py"]
+2025-Dec-10 03:28:30.355492
+2025-Dec-10 03:28:30.355492
+FROM base AS gitlab_webhook
+2025-Dec-10 03:28:30.355492
+ADD pr_agent pr_agent
+2025-Dec-10 03:28:30.355492
+CMD ["python", "pr_agent/servers/gitlab_webhook.py"]
+2025-Dec-10 03:28:30.355492
+2025-Dec-10 03:28:30.355492
+FROM base AS azure_devops_webhook
+2025-Dec-10 03:28:30.355492
+ADD pr_agent pr_agent
+2025-Dec-10 03:28:30.355492
+CMD ["python", "pr_agent/servers/azuredevops_server_webhook.py"]
+2025-Dec-10 03:28:30.355492
+2025-Dec-10 03:28:30.355492
+FROM base AS gitea_app
+2025-Dec-10 03:28:30.355492
+ADD pr_agent pr_agent
+2025-Dec-10 03:28:30.355492
+CMD ["python", "-m", "gunicorn", "-k", "uvicorn.workers.UvicornWorker", "-c", "pr_agent/servers/gunicorn_config.py","pr_agent.servers.gitea_app:app"]
+2025-Dec-10 03:28:30.355492
+2025-Dec-10 03:28:30.355492
+2025-Dec-10 03:28:30.355492
+FROM base AS test
+2025-Dec-10 03:28:30.355492
+ADD requirements-dev.txt .
+2025-Dec-10 03:28:30.355492
+RUN pip install --no-cache-dir -r requirements-dev.txt && rm requirements-dev.txt
+2025-Dec-10 03:28:30.355492
+ADD pr_agent pr_agent
+2025-Dec-10 03:28:30.355492
+ADD tests tests
+2025-Dec-10 03:28:30.355492
+2025-Dec-10 03:28:30.355492
+FROM base AS cli
+2025-Dec-10 03:28:30.355492
+ADD pr_agent pr_agent
+2025-Dec-10 03:28:30.355492
+ENTRYPOINT ["python", "pr_agent/cli.py"]
+2025-Dec-10 03:28:30.562896
+Creating .env file with runtime variables for container.
+2025-Dec-10 03:28:30.922361
+[CMD]: docker exec fk848cwscs8s4g8sgocs8kok bash -c 'cat /artifacts/fk848cwscs8s4g8sgocs8kok/.env'
+2025-Dec-10 03:28:30.922361
+SOURCE_COMMIT=93f05af05fe34f76579e600efb7a9d2aa841960d
+2025-Dec-10 03:28:30.922361
+COOLIFY_URL=http://r0gg40o0wog4sg0cso4cog4c.207.244.226.234.sslip.io
+2025-Dec-10 03:28:30.922361
+COOLIFY_FQDN=r0gg40o0wog4sg0cso4cog4c.207.244.226.234.sslip.io
+2025-Dec-10 03:28:30.922361
+COOLIFY_BRANCH=main
+2025-Dec-10 03:28:30.922361
+COOLIFY_RESOURCE_UUID=r0gg40o0wog4sg0cso4cog4c
+2025-Dec-10 03:28:30.922361
+COOLIFY_CONTAINER_NAME=r0gg40o0wog4sg0cso4cog4c-032826286759
+2025-Dec-10 03:28:30.922361
+GITHUB__APP_ID=2209305
+2025-Dec-10 03:28:30.922361
+GITHUB__PRIVATE_KEY=-----BEGIN RSA PRIVATE KEY----- MIIEowIBAAKCAQEAsg9/nBc2OdsuuCy6+MAKZnwCDNmnwPAmbdmQH22gPyA2k/j7 LoSTG7HeD/+9BXKMXKuvfEjv1/5YcZMbWf+FNlbg9Xqq5eNbLEIaO2qLwGi+fxuO ha+3wzYdmEdah4GuygQXjfA3J76FEWvIKXWeA79C3tvhvXUPDwVNbKR7bwtczxhK NoN3YNdmLf3aed07Z7Vyf9zeZrptQINwLd9jcN9wKdl1ae/4idQ0N3U4jBX0ig2w ZPmi8bfa+p2r1yLAnsZD0IC/3yKQVGJHgYKyE45XNUxp9beAi3x+QphYObmedme+ Qy/nY8s/8Ybj/K7h7k9+UtOTr5Wi5zH7MQpDTQIDAQABAoIBAFBp2WqHvRCB4OaC JOpD6C6CYHanMTBcBC7l60WWP6FijeNjtSQ78Se3ux6kkxvLsIIFcxoA4ng8QHsC QX7ye5mfwLZ78IQjmkAxliExK+34H9fNfR74zVeWr+TejI7XzTUkhfKvAmmri/Lj JyE6IeN1U+DLknX6UJOrBF1FJw1tZg6fW7p9frhpkRv2aqvV8SJ014hQiJPcH0SC EQbghH/D/JAySELncYaE1FnmX4+43NLp7G+iv0we0N2lfQ6hmyA1z+FdCx90oFYO EB6rajYTY77oz2CghzEhFIkJwY0A2R4NrYWTyABzxUYW/OKwsTgSYRXkn/MOtqSo 4TN/W00CgYEA4m8ydPSwVz8SxqddWl445njQHcpb6Lq7rhbc2x8Goj2KwknMz4hX TqGRflW9ZVgPd0kaSWDEnHfiQAeQkijItIg23kXEc86KUHk7JcBZrvWh6qa9uWlo uFxGpba/0XyFAi1OeApneWm8nq+yeE6jf/L0WZrWxSfNKezRTus+kGcCgYEAyU9b NnQB39c9w44jizzcBIYUwZ9aC98tTCCQ2Zsg7oWF5GQ9ztOT+NE031Ls6WxLpWpX SLrHnABcBxTv29yjZbUbQjlyrUONHop1PoQ6c12+QSI3nvxawSWL5O5uOiq7IrD9 bS+K6L8CQTs4Ie/RsPIG05Vz1ZCx7QRPuJhOrisCgYAXgFcKUIMk6wT13VURFgpt 0Ug4b1JOu2LTVMgjbfrwR9bpB2Pcflghbx98r0VzCUrBpLK3vvVpEABJiP92TAlY w3J+a1tScbNlWs/KwUYNpKzjf97dKZWW3OzwMiGCipv7d9xXFS1cKp9LEQ1C81aA 5yR5UFrOJ61hlpS6ziu2LQKBgBksLiix+uYFoTiJ1pH7qzt5lLDdf0IKxzxEujgr uMN6uNJlYoExXch4SJdAZFWP8CmgEYgLqxgrx1YvXQruHRSDwAPY8SkPUF8oSx7l I/X3G+pDIBdmUObkDgkzc18cpsfgv9/eWQ1fjSWhBRThSyRIL2hXwONMs6MCrgFU Mkp/AoGBAN9fhWXUsBLTbhIKea4MavdLhOk0v5UdZegq9zE4e04nTgcSNBdAyhGz AqWNacaiYMzwdKIj2LPiBDTHgKwnnDuLF0OoZxOAGPyQojP/bbG6631Z1qjJSd92 NPHsfGZFffTHd0OhpLAcspicbi2uXQYLBh6TcekbJBMhX+wBa5y2 -----END RSA PRIVATE KEY-----
+2025-Dec-10 03:28:30.922361
+GITHUB__WEBHOOK_SECRET=3046b7ef89411854717eb089da474c829e537c0d
+2025-Dec-10 03:28:30.922361
+CONFIG__MODEL=openai/gpt-5.1
+2025-Dec-10 03:28:30.922361
+CONFIG__FALLBACK_MODELS=[\"openai/gpt-5\",\"openai/gpt-5-nano\"]
+2025-Dec-10 03:28:30.922361
+OPENAI__API_BASE=https://litellm.confer.today
+2025-Dec-10 03:28:30.922361
+OPENAI__KEY=sk-yro00aoQNeQCwajap9tOVQ
+2025-Dec-10 03:28:30.922361
+CONFIG__CUSTOM_MODEL_MAX_TOKENS=200000
+2025-Dec-10 03:28:30.922361
+LITELLM__DROP_PARAMS=true
+2025-Dec-10 03:28:30.922361
+CONFIG__TEMPERATURE=1
+2025-Dec-10 03:28:30.922361
+PORT=3000
+2025-Dec-10 03:28:30.922361
+HOST=0.0.0.0
+2025-Dec-10 03:28:31.046209
+----------------------------------------
+2025-Dec-10 03:28:31.054110
+Rolling update started.
+2025-Dec-10 03:28:31.736762
+[CMD]: docker exec fk848cwscs8s4g8sgocs8kok bash -c 'COOLIFY_URL=http://r0gg40o0wog4sg0cso4cog4c.207.244.226.234.sslip.io COOLIFY_FQDN=r0gg40o0wog4sg0cso4cog4c.207.244.226.234.sslip.io COOLIFY_BRANCH=main COOLIFY_RESOURCE_UUID=r0gg40o0wog4sg0cso4cog4c  docker compose --project-name r0gg40o0wog4sg0cso4cog4c --project-directory /artifacts/fk848cwscs8s4g8sgocs8kok -f /artifacts/fk848cwscs8s4g8sgocs8kok/docker-compose.yaml up --build -d'
+2025-Dec-10 03:28:31.736762
+time="2025-12-10T03:28:31Z" level=warning msg="Found orphan containers ([r0gg40o0wog4sg0cso4cog4c-031126202748]) for this project. If you removed or renamed this service in your compose file, you can run this command with the --remove-orphans flag to clean it up."
+2025-Dec-10 03:28:31.736762
+Container r0gg40o0wog4sg0cso4cog4c-032826286759  Creating
+2025-Dec-10 03:28:31.814063
+r0gg40o0wog4sg0cso4cog4c-032826286759 Your kernel does not support memory swappiness capabilities or the cgroup is not mounted. Memory swappiness discarded.
+2025-Dec-10 03:28:31.819059
+Container r0gg40o0wog4sg0cso4cog4c-032826286759  Created
+2025-Dec-10 03:28:31.819059
+Container r0gg40o0wog4sg0cso4cog4c-032826286759  Starting
+2025-Dec-10 03:28:32.051723
+Container r0gg40o0wog4sg0cso4cog4c-032826286759  Started
+2025-Dec-10 03:28:32.076002
+New container started.
+2025-Dec-10 03:28:32.087927
+Removing old containers.
+2025-Dec-10 03:28:40.196797
+[CMD]: docker stop -t 30 r0gg40o0wog4sg0cso4cog4c-031126202748
+2025-Dec-10 03:28:40.196797
+r0gg40o0wog4sg0cso4cog4c-031126202748
+2025-Dec-10 03:28:40.386398
+[CMD]: docker rm -f r0gg40o0wog4sg0cso4cog4c-031126202748
+2025-Dec-10 03:28:40.386398
+r0gg40o0wog4sg0cso4cog4c-031126202748
+2025-Dec-10 03:28:40.400075
+Rolling update completed.
+2025-Dec-10 03:28:40.842485
+Gracefully shutting down build container: fk848cwscs8s4g8sgocs8kok
+2025-Dec-10 03:28:41.245602
+[CMD]: docker stop -t 30 fk848cwscs8s4g8sgocs8kok
+2025-Dec-10 03:28:41.245602
+fk848cwscs8s4g8sgocs8kok
+2025-Dec-10 03:28:41.404981
+[CMD]: docker rm -f fk848cwscs8s4g8sgocs8kok
+2025-Dec-10 03:28:41.404981
+Error response from daemon: No such container: fk848cwscs8s4g8sgocs8kok

@@ -395,6 +395,8 @@ class LiteLLMAIHandler(BaseAiHandler):
                 get_logger().info(f"\nUser prompt:\n{user}")
 
             # Get completion with automatic streaming detection
+            # Final safety: strip any lingering escape characters in the model just before calling LiteLLM
+            kwargs["model"] = kwargs["model"].strip().strip("\\'\"").replace("\\", "").strip()
             resp, finish_reason, response_obj = await self._get_completion(**kwargs)
 
         except openai.RateLimitError as e:
