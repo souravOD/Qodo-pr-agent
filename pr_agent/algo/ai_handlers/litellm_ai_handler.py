@@ -400,6 +400,7 @@ class LiteLLMAIHandler(BaseAiHandler):
             if model_clean.startswith("gpt-5"):
                 model_clean = f"openai/{model_clean}"
             kwargs["model"] = model_clean
+            get_logger().warning(f"LiteLLM call model='{model_clean}'")  # debug trace for model string
             resp, finish_reason, response_obj = await self._get_completion(**kwargs)
 
         except openai.RateLimitError as e:
