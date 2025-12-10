@@ -349,7 +349,13 @@ def _get_all_models(model_type: ModelType = ModelType.REGULAR) -> List[str]:
         model = get_settings().config.model
     fallback_models = get_settings().config.fallback_models
     if not isinstance(fallback_models, list):
-        fallback_models = [m.strip() for m in fallback_models.split(",")]
+        # Normalize comma-separated strings that might include brackets/quotes from env injection.
+        cleaned = (
+            fallback_models.strip("[]")  # drop surrounding brackets if present
+            .replace('"', "")
+            .replace("'", "")
+        )
+        fallback_models = [m.strip() for m in cleaned.split(",") if m.strip()]
     all_models = [model] + fallback_models
     return all_models
 

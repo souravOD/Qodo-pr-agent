@@ -291,8 +291,13 @@ class LiteLLMAIHandler(BaseAiHandler):
                                           {"type": "image_url", "image_url": {"url": img_path}}]
 
             thinking_kwargs_gpt5 = None
-            if model.startswith('gpt-5'):
-                if model.endswith('_thinking'):
+            # Normalize gpt-5 family names to the LiteLLM-required openai/ prefix.
+            if model.startswith('openai/'):
+                gpt5_base = model.removeprefix('openai/')
+            else:
+                gpt5_base = model
+            if gpt5_base.startswith('gpt-5'):
+                if gpt5_base.endswith('_thinking'):
                     thinking_kwargs_gpt5 = {
                         "reasoning_effort": 'low',
                         "allowed_openai_params": ["reasoning_effort"],
@@ -302,7 +307,7 @@ class LiteLLMAIHandler(BaseAiHandler):
                         "reasoning_effort": 'minimal',
                         "allowed_openai_params": ["reasoning_effort"],
                     }
-                model = 'openai/'+model.replace('_thinking', '')  # remove _thinking suffix
+                model = 'openai/' + gpt5_base.replace('_thinking', '')  # ensure prefix and remove _thinking suffix
 
 
             # Currently, some models do not support a separate system and user prompts
