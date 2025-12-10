@@ -396,7 +396,10 @@ class LiteLLMAIHandler(BaseAiHandler):
 
             # Get completion with automatic streaming detection
             # Final safety: strip any lingering escape characters in the model just before calling LiteLLM
-            kwargs["model"] = kwargs["model"].strip().strip("\\'\"").replace("\\", "").strip()
+            model_clean = kwargs["model"].strip().strip("\\'\"").replace("\\", "").strip()
+            if model_clean.startswith("gpt-5"):
+                model_clean = f"openai/{model_clean}"
+            kwargs["model"] = model_clean
             resp, finish_reason, response_obj = await self._get_completion(**kwargs)
 
         except openai.RateLimitError as e:
