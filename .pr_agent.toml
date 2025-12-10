@@ -1,7 +1,7 @@
 [config]
-# Use LiteLLM proxy-compatible OpenAI models (avoid restricted dated variants).
-model = "gpt-5"
-fallback_models = ["gpt-5-mini", "gpt-5-nano"]
+# Use LiteLLM proxy-compatible OpenAI models with explicit provider prefix.
+model = "openai/gpt-5"
+fallback_models = ["openai/gpt-5-mini", "openai/gpt-5-nano"]
 
 [openai]
 # Route all OpenAI-style calls through the LiteLLM proxy.
