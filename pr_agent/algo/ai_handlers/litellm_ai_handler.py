@@ -64,6 +64,11 @@ class LiteLLMAIHandler(BaseAiHandler):
         if get_settings().get("OPENAI.API_BASE", None):
             litellm.api_base = get_settings().openai.api_base
             self.api_base = get_settings().openai.api_base
+            # For LiteLLM proxy servers, ensure model names are preserved with provider prefix
+            # This prevents LiteLLM from stripping the prefix when making API calls
+            if "litellm" in get_settings().openai.api_base.lower() or "confer.today" in get_settings().openai.api_base.lower():
+                # Configure LiteLLM to preserve model name format for proxy servers
+                litellm.drop_params = False  # Ensure we don't drop model parameter
         if get_settings().get("ANTHROPIC.KEY", None):
             litellm.anthropic_key = get_settings().anthropic.key
         if get_settings().get("COHERE.KEY", None):
@@ -397,8 +402,12 @@ class LiteLLMAIHandler(BaseAiHandler):
             # Get completion with automatic streaming detection
             # Final safety: strip any lingering escape characters in the model just before calling LiteLLM
             model_clean = kwargs["model"].strip().strip("\\'\"").replace("\\", "").strip()
-            if model_clean.startswith("gpt-5"):
+            # Ensure model has proper prefix for LiteLLM proxy compatibility
+            # When using a custom API base (LiteLLM proxy), preserve the full model name with prefix
+            if model_clean.startswith("gpt-5") and not model_clean.startswith("openai/"):
                 model_clean = f"openai/{model_clean}"
+            # For LiteLLM proxy servers, ensure the model name format is preserved
+            # The proxy expects the full model identifier with provider prefix
             kwargs["model"] = model_clean
             get_logger().warning(f"LiteLLM call model='{model_clean}'")  # debug trace for model string
             resp, finish_reason, response_obj = await self._get_completion(**kwargs)

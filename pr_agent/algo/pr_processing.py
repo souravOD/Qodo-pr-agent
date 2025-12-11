@@ -351,16 +351,18 @@ def _get_all_models(model_type: ModelType = ModelType.REGULAR) -> List[str]:
             cleaned = f"openai/{cleaned}"
         return cleaned
 
-    # Hard-pin the gpt-5 family models to avoid any env parsing issues.
+    # Read model from config settings instead of hardcoding
     if model_type == ModelType.WEAK:
-        model = "openai/gpt-5.1"
+        model = get_settings().get("config.model_weak") or get_settings().config.model
     elif model_type == ModelType.REASONING:
-        model = "openai/gpt-5.1"
+        model = get_settings().get("config.model_reasoning") or get_settings().config.model
     elif model_type == ModelType.REGULAR:
-        model = "openai/gpt-5.1"
+        model = get_settings().config.model
     else:
-        model = "openai/gpt-5.1"
-    fallback_models = ["openai/gpt-5", "openai/gpt-5-nano"]
+        model = get_settings().config.model
+    
+    # Read fallback models from config
+    fallback_models = get_settings().get("config.fallback_models", ["openai/gpt-5", "openai/gpt-5-nano"])
     if not isinstance(fallback_models, list):
         # Normalize comma-separated strings that might include brackets/quotes from env injection.
         cleaned = (
