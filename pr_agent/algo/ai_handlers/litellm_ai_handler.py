@@ -439,7 +439,13 @@ class LiteLLMAIHandler(BaseAiHandler):
         get_logger().debug(f"\nAI response:\n{resp}")
 
         # log the full response for debugging
-        response_log = self.prepare_logs(response_obj, system, user, resp, finish_reason)
+        if isinstance(response_obj, dict):
+            safe_response = response_obj
+        elif hasattr(response_obj, "dict"):
+            safe_response = response_obj.dict()
+        else:
+            safe_response = {"raw_response": response_obj}
+        response_log = self.prepare_logs(safe_response, system, user, resp, finish_reason)
         get_logger().debug("Full_response", artifact=response_log)
 
         # for CLI debugging
