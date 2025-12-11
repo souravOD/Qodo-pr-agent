@@ -157,7 +157,12 @@ class LiteLLMAIHandler(BaseAiHandler):
         self.streaming_required_models = STREAMING_REQUIRED_MODELS
 
     def prepare_logs(self, response, system, user, resp, finish_reason):
-        response_log = response.dict().copy()
+        if isinstance(response, dict):
+            response_log = response.copy()
+        elif hasattr(response, "dict"):
+            response_log = response.dict().copy()
+        else:
+            response_log = {"raw_response": response}
         response_log['system'] = system
         response_log['user'] = user
         response_log['output'] = resp
