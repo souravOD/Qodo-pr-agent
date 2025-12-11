@@ -3,6 +3,7 @@ import litellm
 import openai
 import requests
 from litellm import acompletion
+from openai import AsyncOpenAI
 from tenacity import retry, retry_if_exception_type, retry_if_not_exception_type, stop_after_attempt
 
 from pr_agent.algo import CLAUDE_EXTENDED_THINKING_MODELS, NO_SUPPORT_TEMPERATURE_MODELS, SUPPORT_REASONING_EFFORT_MODELS, USER_MESSAGE_ONLY_MODELS, STREAMING_REQUIRED_MODELS
@@ -406,8 +407,21 @@ class LiteLLMAIHandler(BaseAiHandler):
             # When using a custom API base (LiteLLM proxy), preserve the full model name with prefix
             if model_clean.startswith("gpt-5") and not model_clean.startswith("openai/"):
                 model_clean = f"openai/{model_clean}"
-            # For LiteLLM proxy servers, ensure the model name format is preserved
-            # The proxy expects the full model identifier with provider prefix
+            
+            # CRITICAL FIX: For LiteLLM proxy servers with custom API base, LiteLLM internally
+            # uses OpenAI client which automatically strips the provider prefix from model names.
+            # However, the proxy server requires the full model name with prefix (e.g., "openai/gpt-5.1").
+            # We need to ensure the model name is passed correctly to preserve the prefix.
+            is_litellm_proxy = (self.api_base and 
+                               ("litellm" in self.api_base.lower() or "confer.today" in self.api_base.lower()))
+            
+            if is_litellm_proxy and model_clean.startswith("openai/"):
+                # For LiteLLM proxy, the model name must include the prefix
+                # LiteLLM will strip it when using OpenAI client, but we can work around this
+                # by using the model name directly in the API call
+                # The model name should already have the prefix from our sanitization above
+                pass  # Model already has prefix, will be passed to LiteLLM
+            
             kwargs["model"] = model_clean
             get_logger().warning(f"LiteLLM call model='{model_clean}'")  # debug trace for model string
             resp, finish_reason, response_obj = await self._get_completion(**kwargs)
@@ -439,6 +453,76 @@ class LiteLLMAIHandler(BaseAiHandler):
         Wrapper that automatically handles streaming for required models.
         """
         model = kwargs["model"]
+        
+        # CRITICAL FIX: For LiteLLM proxy servers, LiteLLM internally uses OpenAI client
+        # which automatically strips the provider prefix (e.g., "openai/gpt-5.1" -> "gpt-5.1").
+        # However, the proxy server requires the full model name with prefix.
+        # Solution: Use OpenAI client directly for LiteLLM proxy servers to preserve model name.
+        is_litellm_proxy = (self.api_base and 
+                           ("litellm" in self.api_base.lower() or "confer.today" in self.api_base.lower()))
+        
+        if is_litellm_proxy and model.startswith("openai/"):
+            # For LiteLLM proxy, use OpenAI client directly to preserve the model name prefix
+            # This bypasses LiteLLM's internal prefix stripping behavior
+            get_logger().info(f"Using OpenAI client directly for LiteLLM proxy with model: {model}")
+            client = AsyncOpenAI(
+                api_key=get_settings().openai.key,
+                base_url=self.api_base
+            )
+            
+            # Extract messages and other parameters from kwargs
+            messages = kwargs.get("messages", [])
+            temperature = kwargs.get("temperature", 0.2)
+            stream = kwargs.get("stream", False)
+            max_tokens = kwargs.get("max_tokens")
+            top_p = kwargs.get("top_p")
+            frequency_penalty = kwargs.get("frequency_penalty")
+            presence_penalty = kwargs.get("presence_penalty")
+            timeout = kwargs.get("timeout", get_settings().config.ai_timeout)
+            
+            # Build request parameters
+            request_params = {
+                "model": model,  # Pass model name with prefix directly
+                "messages": messages,
+                "temperature": temperature,
+                "timeout": timeout,
+            }
+            
+            if max_tokens:
+                request_params["max_tokens"] = max_tokens
+            if top_p:
+                request_params["top_p"] = top_p
+            if frequency_penalty:
+                request_params["frequency_penalty"] = frequency_penalty
+            if presence_penalty:
+                request_params["presence_penalty"] = presence_penalty
+            
+            # Handle extra_body if present (for reasoning_effort, etc.)
+            if "extra_body" in kwargs:
+                request_params.update(kwargs["extra_body"])
+            
+            if stream:
+                request_params["stream"] = True
+                response = await client.chat.completions.create(**request_params)
+                resp, finish_reason = await _handle_streaming_response(response)
+                mock_response = MockResponse(resp, finish_reason)
+                return resp, finish_reason, mock_response
+            else:
+                response = await client.chat.completions.create(**request_params)
+                if response is None or len(response.choices) == 0:
+                    raise openai.APIError("Empty response from OpenAI API")
+                return (
+                    response.choices[0].message.content,
+                    response.choices[0].finish_reason,
+                    {
+                        "choices": [{
+                            "message": {"content": response.choices[0].message.content},
+                            "finish_reason": response.choices[0].finish_reason
+                        }]
+                    }
+                )
+        
+        # For non-proxy or non-openai models, use LiteLLM as usual
         if model in self.streaming_required_models:
             kwargs["stream"] = True
             get_logger().info(f"Using streaming mode for model {model}")
